@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class RMSNorm(nn.Module):
     def __init__(self, d_model: int, eps: float = 1e-8):
@@ -17,5 +18,9 @@ class FullAttnRes(nn.Module):
         self.w = nn.Parameter(torch.zeros(num_layers, d_model))
         self.norm = RMSNorm(d_model)
 
-    
-          
+    def compute_weights(self, layer_idx: int, sources: torch.Tensor) -> torch.Tensor:
+        K = self.norm(sources)
+        q = self.norm(layer_idx)
+        logits = torch.einsum('d, n b t d -> n b t', q, K)
+        
+        return F.softmax(logits, dim=0)
