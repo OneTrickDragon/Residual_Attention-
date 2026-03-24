@@ -24,3 +24,26 @@ class FullAttnRes(nn.Module):
         logits = torch.einsum('d, n b t d -> n b t', q, K)
         
         return F.softmax(logits, dim=0)
+    
+    def forward(self, embedding: torch.Tensor, 
+                layer_fns: list[nn.Module]) -> tuple[torch.Tensor, torch.Tensor]:
+        
+        L = len(layer_fns)
+        assert L == self.num_layers
+        B, T, D = embedding.shape
+
+        layer_outputs = [embedding]
+        weight_matrix = torch.zeros(L, L+1)
+
+        for l in range(L):
+            sources = torch.stack(layer_outputs) #[l+1, B, T, D]
+            weights = self.compute_weights(l, sources) #[L+1, B, T]
+
+            h_l = torch.einsum('n b t, n b t d -> b t d', weights, sources)
+            avg_w = weights.mean(dim=(1, 2)).detach()
+            weight_matrix[l, :l + 1] = avg_w
+
+            v_l = layer_fns[l](h_l)
+            layer_outputs.append(v_l)
+        return h_l, weight_matrix
+    
