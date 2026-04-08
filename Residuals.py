@@ -47,3 +47,11 @@ class FullAttnRes(nn.Module):
             layer_outputs.append(v_l)
         return h_l, weight_matrix
     
+class BlockAttnRes(nn.Module):
+    def __init__(self, num_layers: int, d_model: int, block_size: int):
+        super().__init__()
+        self.num_layers = num_layers
+        self.d_model = d_model
+        self.block_size = block_size
+        self.w = nn.Parameter(torch.zeros(num_layers, d_model))
+        self.norm = RMSNorm(d_model)
