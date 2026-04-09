@@ -55,3 +55,13 @@ class BlockAttnRes(nn.Module):
         self.block_size = block_size
         self.w = nn.Parameter(torch.zeros(num_layers, d_model))
         self.norm = RMSNorm(d_model)
+
+    def _attend(self, sources: list[torch.Tensor], query: list[torch.Tensor]):
+        V = torch.stack(sources)
+        K = self.norm()
+        logits = torch.einsum('d, n b t d -> n b t', query, K)
+        weights = F.softmax(logits, dim=0)
+        h = torch.einsum('n b t, n b t d -> b t d', weights, V)
+        return h, weights
+    
+    
