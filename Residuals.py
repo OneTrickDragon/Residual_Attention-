@@ -64,4 +64,35 @@ class BlockAttnRes(nn.Module):
         h = torch.einsum('n b t, n b t d -> b t d', weights, V)
         return h, weights
     
+    def forward(self, embedding: torch.Tensor, layer_fns: list[nn.Module]) -> tuple[torch.Tensor, torch.Tensor]:
+        L = len(layer_fns)
+        B, T, D = embedding.shape
+
+        blocks = [embedding]
+        partial_block = None
+        weight_records = []
+
+        for l in range(L):
+            if partial_block is not None:
+                sources = blocks + partial_block
+            else:
+                sources = list(blocks)
+        
+            h_l, weights = self._attend(sources, self.w[l])
+
+            avg_w = weights.mean(dim=(1,2)).detach()
+            weight_records.append((l, len(sources), avg_w))
+
+            v_l = layer_fns[l](h_l)
+
+            if partial_block is None:
+                partial_block = v_l
+            else:
+                partial_block = partial_block + v_l
+            
+            if (l+1)%self.block_size == 0:
+                blocks.append(partial_block)
+                partial_block = None
     
+        return h_l, weight_records
+
