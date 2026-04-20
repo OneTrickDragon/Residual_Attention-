@@ -96,3 +96,26 @@ class BlockAttnRes(nn.Module):
     
         return h_l, weight_records
 
+num_layers = 16
+D_model = 128
+Block_size = 4
+B, T = 4, 32
+
+class DummyLayer(nn.Module):
+    def __init__(self, d_model: int):
+        super().__init__
+        self.norm = nn.LayerNorm(d_model)
+        self.net = nn.Sequential(nn.Linear(d_model, d_model*2),
+                                 nn.GELU,
+                                 nn.Linear(d_model*2, d_model))
+        
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return self.net(self.norm(x))
+        
+
+layer_fns = nn.ModuleList([DummyLayer(D_model) for _ in range(num_layers)])
+embedding = torch.randn(B, T, D_model)
+
+print(f"Model: {num_layers} layers, d_model={D_model}")
+print(f"Block AttnRes: block_size={Block_size}, num_blocks={num_layers // Block_size}")
+print(f"Input: batch={B}, seq_len={T}")
