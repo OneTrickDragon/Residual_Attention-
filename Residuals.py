@@ -103,14 +103,14 @@ B, T = 4, 32
 
 class DummyLayer(nn.Module):
     def __init__(self, d_model: int):
-        super().__init__
+        super().__init__()
         self.norm = nn.LayerNorm(d_model)
         self.net = nn.Sequential(nn.Linear(d_model, d_model*2),
-                                 nn.GELU,
+                                 nn.GELU(),
                                  nn.Linear(d_model*2, d_model))
         
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
-            return self.net(self.norm(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(self.norm(x))
         
 
 layer_fns = nn.ModuleList([DummyLayer(D_model) for _ in range(num_layers)])
@@ -119,3 +119,31 @@ embedding = torch.randn(B, T, D_model)
 print(f"Model: {num_layers} layers, d_model={D_model}")
 print(f"Block AttnRes: block_size={Block_size}, num_blocks={num_layers // Block_size}")
 print(f"Input: batch={B}, seq_len={T}")
+
+full_model_zero = FullAttnRes(num_layers, D_model)
+
+with torch.no_grad():
+    _, weight_matrix_zero = full_model_zero(embedding, layer_fns)
+
+print("Attention weights for layer 5 (zero-init, should be uniform):")
+print(weight_matrix_zero[4, :5].numpy().round(3))
+print(f"Sum: {weight_matrix_zero[4, :5].sum().item():.3f}")
+
+full_model = FullAttnRes(num_layers, D_model)
+block_model = BlockAttnRes(num_layers, D_model, Block_size)
+
+with torch.no_grad():
+    nn.init.normal_(full_model.w, std=0.5)
+    nn.init.normal_(block_model.w, std=0.5)
+
+
+with torch.no_grad():
+    _, full_weights = full_model(embedding, layer_fns)
+    _, block_records = block_model(embedding, layer_fns)
+
+
+print("Full AttnRes weight matrix shape:", full_weights.shape)
+print(f"Block AttnRes: {len(block_records)} layers recorded")
+print(f"\nExample -- Full AttnRes, layer 8 weights over sources 0..8:")
+print(full_weights[7, :8].numpy().round(3))
+
